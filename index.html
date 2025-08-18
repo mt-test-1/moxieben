@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>默写 & 背诵 网页</title>
+    <script src="demo.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen p-4">
+    <div class="max-w-5xl mx-auto bg-white p-6 rounded shadow">
+      <h1 class="text-2xl font-bold mb-4">默写 & 背诵 工具</h1>
+
+      <!-- 控制区 -->
+      <div class="flex flex-wrap gap-4 mb-4">
+        <select id="sectionSelect" class="border p-2 rounded">
+          <option value="">全部章节</option>
+        </select>
+
+        <select id="modeSelect" class="border p-2 rounded">
+          <option value="recite">背诵模式</option>
+          <option value="dictation">默写模式（顺序）</option>
+          <option value="randomDictation">随机默写模式</option>
+        </select>
+
+        <input
+          id="questionCount"
+          type="number"
+          min="1"
+          value="5"
+          class="border p-2 rounded w-24"
+          placeholder="题数"
+        />
+
+        <button
+          id="startBtn"
+          class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          开始
+        </button>
+
+        <!-- 一键清除按钮 -->
+        <button
+          id="clearBtn"
+          class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+        >
+          一键清除
+        </button>
+      </div>
+
+      <!-- 题目区 -->
+      <div id="questionContainer" class="space-y-6"></div>
+
+      <!-- 提交按钮 -->
+      <div class="mt-6">
+        <button
+          id="submitBtn"
+          class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded hidden"
+        >
+          提交
+        </button>
+      </div>
+    </div>
+
+    <script>
+      const sectionSelect = document.getElementById("sectionSelect");
+      const modeSelect = document.getElementById("modeSelect");
+      const questionCountInput = document.getElementById("questionCount");
+      const startBtn = document.getElementById("startBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const submitBtn = document.getElementById("submitBtn");
+      const questionContainer = document.getElementById("questionContainer");
+
+      // 初始化章节下拉框
+      const sections = [...new Set(jsonData.map((item) => item.section))];
+      sections.forEach((sec) => {
+        const opt = document.createElement("option");
+        opt.value = sec;
+        opt.textContent = sec;
+        sectionSelect.appendChild(opt);
+      });
+
+      let currentQuestions = [];
+
+      // 开始按钮
+      startBtn.addEventListener("click", () => {
+        const section = sectionSelect.value;
+        const mode = modeSelect.value;
+        const count = parseInt(questionCountInput.value) || 5;
+
+        // 按章节过滤
+        let data = section
+          ? jsonData.filter((q) => q.section === section)
+          : jsonData;
+
+        // 模式处理
+        if (mode === "dictation") {
+          // 顺序默写
+          data = data.slice(0, count);
+        } else if (mode === "randomDictation") {
+          // 随机默写
+          data = data.sort(() => Math.random() - 0.5).slice(0, count);
+        }
+
+        currentQuestions = data;
+        renderQuestions(mode);
+      });
+
+      // 渲染题目
+      function renderQuestions(mode) {
+        questionContainer.innerHTML = "";
+        currentQuestions.forEach((q, idx) => {
+          const div = document.createElement("div");
+          div.className = "p-4 border rounded";
+
+          const questionEl = document.createElement("p");
+          questionEl.className = "font-semibold";
+          questionEl.textContent = `${idx + 1}. ${q.question}`;
+          div.appendChild(questionEl);
+
+          if (mode === "recite") {
+            const answerEl = document.createElement("p");
+            answerEl.className = "mt-2 text-gray-700 whitespace-pre-line";
+            answerEl.textContent = q.answer;
+            div.appendChild(answerEl);
+          } else {
+            const inputEl = document.createElement("textarea");
+            inputEl.className = "mt-2 w-full border p-2 rounded resize-none";
+            inputEl.rows = 6;
+            inputEl.dataset.answer = q.answer;
+
+            // 固定默认高度为6行
+            const lineHeight = 24; // 每行高度估算，可根据实际样式调整
+            const defaultRows = 6;
+            inputEl.dataset.defaultHeight = lineHeight * defaultRows + "px";
+            inputEl.style.height = inputEl.dataset.defaultHeight;
+
+            // 自动高度调整
+            inputEl.addEventListener("input", () => {
+              inputEl.style.height = "auto";
+              const minHeight = lineHeight * defaultRows; // 最小6行高度
+              inputEl.style.height =
+                Math.max(minHeight, inputEl.scrollHeight) + "px";
+            });
+
+            div.appendChild(inputEl);
+          }
+
+          questionContainer.appendChild(div);
+        });
+
+        submitBtn.classList.toggle("hidden", mode === "recite");
+      }
+
+      // 提交答案
+      submitBtn.addEventListener("click", () => {
+        const textareas = questionContainer.querySelectorAll("textarea");
+        textareas.forEach((area) => {
+          const correct = area.dataset.answer.trim();
+          const userAns = area.value.trim();
+          if (userAns === correct) {
+            area.classList.remove("border-red-500");
+            area.classList.add("border-green-500");
+          } else {
+            area.classList.remove("border-green-500");
+            area.classList.add("border-red-500");
+            const correctEl = document.createElement("div");
+            correctEl.className = "mt-2 text-sm text-gray-500";
+            correctEl.textContent = `正确答案: ${correct}`;
+            area.parentElement.appendChild(correctEl);
+          }
+        });
+      });
+
+      // 一键清除
+      clearBtn.addEventListener("click", () => {
+        const textareas = questionContainer.querySelectorAll("textarea");
+        textareas.forEach((area) => {
+          area.value = "";
+          area.style.height = area.dataset.defaultHeight || "144px"; // 恢复默认6行
+          area.classList.remove("border-green-500", "border-red-500");
+        });
+        // 删除正确答案提示
+        questionContainer
+          .querySelectorAll(".text-sm.text-gray-500")
+          .forEach((el) => el.remove());
+      });
+    </script>
+  </body>
+</html>
