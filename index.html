@@ -115,7 +115,10 @@
 
           const questionEl = document.createElement("p");
           questionEl.className = "font-semibold";
-          questionEl.textContent = `${idx + 1}. ${q.question}`;
+          questionEl.textContent = `${idx + 1}. ${q.question.replace(
+            /【问\s*\d+】/g,
+            ""
+          )}`;
           div.appendChild(questionEl);
 
           if (mode === "recite") {
